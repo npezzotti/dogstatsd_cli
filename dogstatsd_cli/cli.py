@@ -32,7 +32,7 @@ def dogstatsd(ctx, host, port, socket):
 @click.pass_context
 @click.option('--name', '-n', required=True, help='Metric name')
 @click.option('--value', '-v', required=True, type=float, help='Metric value')
-@click.option('--operation', '-o', required=True, type=click.Choice([
+@click.option('--metric-type', '-m', required=True, type=click.Choice([
     'increment',
     'decrement',
     'count', 
@@ -41,13 +41,13 @@ def dogstatsd(ctx, host, port, socket):
     'histogram',
     'timed',
     'distribution'
-    ]), help='Metric operation')
+    ]), help='Metric type')
 @click.option('--sample-rate', '-s', type=float, help='Sample rate')
 @click.option('--tags', '-t', help='Comma separated list of tags')
-def metric(ctx, name, value, operation, sample_rate, tags):
+def metric(ctx, name, value, metric_type, sample_rate, tags):
     print(tags)
     client = ctx.obj['client']
-    client.metric(name, value, operation, sample_rate, tags)
+    client.metric(name, value, metric_type, sample_rate, tags)
 
 
 @dogstatsd.command()
@@ -69,7 +69,7 @@ def service_check(ctx, name, status, date, hostname, tags, message):
 @click.option('--text', '-tx', required=True, help='Event text')
 @click.option('--date', '-d', help='timestamp')
 @click.option('--hostname', '-h', help='Hostname')
-@click.option('--aggregation-key', '-a', help='Hostname')
+@click.option('--aggregation-key', '-a', help='Aggregation key')
 @click.option('--priority', '-p', help='Priority')
 @click.option('--alert-type', '-at', type=click.Choice([
     'error', 
