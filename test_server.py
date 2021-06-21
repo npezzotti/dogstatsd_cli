@@ -9,4 +9,4 @@ sock.bind((UDP_IP, UDP_PORT))
 
 while True:
     data, addr = sock.recvfrom(1024) # buffer size is 1024 bytes
-    print("[RECEIVED MESSAGE]: %s" % data)
+    print("[RECEIVED MESSAGE]: %s" % data.decode('utf-8'))
