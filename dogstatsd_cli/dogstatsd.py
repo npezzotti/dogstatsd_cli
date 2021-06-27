@@ -1,9 +1,8 @@
 import socket
 import os
 import re
-import time
-import logging
-
+from time import time
+from logging import getLogger
 
 DEFAULT_HOST = 'localhost'
 DEFAULT_PORT = 8125
@@ -22,31 +21,32 @@ class DogstatsdClient():
         default_sample_rate=1
         ):
         
-        self.logger = logging.getLogger('dogstatsd-cli')
+        self.logger = getLogger('dogstatsd-cli')
 
-        if os.environ.get('DD_AGENT_HOST'):
-            self.host = os.environ.get('DD_AGENT_HOST')
-            self.logger.debug('Found DD_AGENT_HOST, using %s' % self.host)
-        
-        if os.environ.get('DD_AGENT_PORT'):
-            self.port = os.environ.get('DD_AGENT_PORT')
-            self.logger.debug('Found DD_AGENT_PORT, using %s' % self.port)
+        self.host = host
+        self.port = port
+        self.socket_path = socket_path
 
         if socket_path is not None:
-            self.socket_path = socket_path
+            self.socket = socket_path
             self.host = None
             self.port = None
-            self.logger.debug('Using Unix domain socket at "%s"' % self.socket_path)
-        else:
-            self.socket_path = None
-            self.host = host
-            self.port = port
+            self.logger.debug('* Using UDS...')
 
         self.encoding = "utf-8"
+        
         self.socket = None
 
         self.namespace = os.environ.get('DD_NAMESPACE')
-        self.constant_tags = tuple(tag for tag in os.environ.get('DD_TAGS', ()).split(',') if tag)       
+
+        if self.namespace:
+            self.logger.debug('* Using namespace %s...' % self.namespace)
+
+        self.constant_tags = tuple(tag for tag in os.environ.get('DD_TAGS', '').split(',') if tag)
+        
+        for tag in self.constant_tags:
+            self.logger.debug('* Sourced %s from DD_TAGS' % tag)
+        
         self.default_sample_rate = default_sample_rate
 
 
@@ -54,21 +54,21 @@ class DogstatsdClient():
         try:
             sock = self.get_socket()
             sock.send(packet.encode(self.encoding))
-            self.logger.info('Packet sent: %s' % packet)
+            self.logger.info('* Packet sent: %s' % packet)
         except OSError as e:
-            self.logger.exception('An error occured: ', str(e))
+            self.logger.error('An error occured: %s\nUse --verbose flag for more details', e)
         finally:
             self.close_socket()
-            self.logger.debug('Connection closed.')
+            self.logger.debug('* Connection closed.')
 
 
     def get_socket(self):
         if not self.socket:
             if self.socket_path is not None:
-                self.logger.debug('Connecting to UDS socket %s...' % self.socket_path)
+                self.logger.debug('* Connecting to UDS socket %s...' % self.socket_path)
                 self.socket = self._get_uds_socket(self.socket_path)
             else:
-                self.logger.debug('Connecting to %s:%s...' % (self.host, self.port))
+                self.logger.debug('* Connecting to %s:%s...' % (self.host, self.port))
                 self.socket = self._get_udp_socket(self.host, self.port)
         
         return self.socket
@@ -77,10 +77,10 @@ class DogstatsdClient():
     def close_socket(self):
         if self.socket:
             try:
-                self.logger.debug('Closing connection...')
+                self.logger.debug('* Closing connection...')
                 self.socket.close()
             except OSError as e:
-                self.logger.error("Unexpected error: %s", str(e))
+                self.logger.error("Unexpected error: %s\nUse --verbose flag for more details's", e)
             
             self.socket = None
 
@@ -175,7 +175,7 @@ class DogstatsdClient():
         tags+=self.constant_tags
 
         if date is None:
-            date=time.time()
+            date=time()
 
         message = '_sc|%s%s|%s%s%s%s%s' % (
             (self.namespace + ".") if self.namespace else '',
@@ -205,7 +205,7 @@ class DogstatsdClient():
         tags+=self.constant_tags
 
         if date is None:
-            date=time.time()
+            date=time()
         
         message = '_e{%d,%d}:%s|%s%s%s%s%s%s%s%s' % (
             len(title),

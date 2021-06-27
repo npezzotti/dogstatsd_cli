@@ -3,13 +3,13 @@ import click
 
 from .dogstatsd import DEFAULT_HOST, DEFAULT_PORT, DogstatsdClient
 from .__about__ import __version__
-from .utils import setup_logger
+from .logger import setup_logger
 
 @click.group()
 @click.pass_context
 @click.option('--verbose', '-v', is_flag=True, help="Display verbose output")
-@click.option('-host', '-h', envvar='DD_AGENT_HOST', help='Host the Datadog Agent is running on')
-@click.option('-port', '-p', type=int, help='Port DogstatsD server is listening on')
+@click.option('-host', '-h', envvar='DD_AGENT_HOST', default='localhost', help='Host the Datadog Agent is running on')
+@click.option('-port', '-p', envvar='DD_AGENT_PORT', type=int, default=8126, help='Port DogstatsD server is listening on')
 @click.option('-socket', '-s', envvar='DD_DOGSTATSD_SOCKET', help='Unix Domain socket')
 @click.version_option(version=__version__, prog_name='dogstatsd-cli')
 def dogstatsd(ctx, host, port, socket, verbose):
@@ -17,19 +17,17 @@ def dogstatsd(ctx, host, port, socket, verbose):
     A command line interface for sending metrics, events and 
     service checks to the Datadog Agent's DogstatsD server.
     """
-    setup_logger(level=logging.DEBUG if verbose else logging.INFO)
+    logger = setup_logger(level=logging.DEBUG if verbose else logging.INFO)
+    
     ctx.ensure_object(dict)
-    ctx.obj['client'] = DogstatsdClient(
-        host=host if host else DEFAULT_HOST, 
-        port=port if port else DEFAULT_PORT,
-        socket_path=socket
-        )
+    ctx.obj['client'] = DogstatsdClient(host, port, socket)
+    ctx.obj['logger'] = logger
 
 
 @dogstatsd.command()
 @click.pass_context
 @click.argument('name')
-@click.option('-value', default=1)
+@click.option('-value', default=1, help='Metric Value')
 @click.option('-sample-rate', '-s', type=float, help='Sample rate')
 @click.option('-tags', '-t', multiple=True, help='Comma separated list of tags')
 def increment(ctx, name, value, sample_rate, tags):
@@ -40,7 +38,7 @@ def increment(ctx, name, value, sample_rate, tags):
 @dogstatsd.command()
 @click.pass_context
 @click.argument('name')
-@click.option('-value', default=1)
+@click.option('-value', default=1, help='Metric Value')
 @click.option('-sample-rate', '-s', type=float, help='Sample rate')
 @click.option('-tags', '-t', multiple=True, help='Comma separated list of tags')
 def decrement(ctx, name, value, sample_rate, tags):
@@ -60,7 +58,7 @@ def count(ctx, name, value, sample_rate, tags):
 @dogstatsd.command()
 @click.pass_context
 @click.argument('name')
-@click.option('-value')
+@click.argument('value')
 @click.option('-sample-rate', '-s', type=float, help='Sample rate')
 @click.option('-tags', '-t', multiple=True, help='Comma separated list of tags')
 def gauge(ctx, name, value, sample_rate, tags):
