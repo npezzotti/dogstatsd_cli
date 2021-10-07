@@ -9,7 +9,7 @@ DEFAULT_PORT = 8125
 
 INVALID_TAG_CHARACTERS=r'[^\w\d_\-:.\/]'
 
-SERVICE_CHECK_STATUSES = [n for n in range(4)]
+SERVICE_CHECK_STATUSES = [str(n) for n in range(4)]
 
 class DogstatsdClient():
 
@@ -40,7 +40,7 @@ class DogstatsdClient():
         self.namespace = os.environ.get('DD_NAMESPACE')
 
         if self.namespace:
-            self.logger.debug('* Using namespace %s...' % self.namespace)
+            self.logger.debug('* Found DD_NAMESPACE, using namespace %s' % self.namespace)
 
         self.constant_tags = tuple(tag for tag in os.environ.get('DD_TAGS', '').split(',') if tag)
         
@@ -56,7 +56,7 @@ class DogstatsdClient():
             sock.send(packet.encode(self.encoding))
             self.logger.info('* Packet sent: %s' % packet)
         except OSError as e:
-            self.logger.error('An error occured: %s\nUse --verbose flag for more details', e)
+            self.logger.error('Error: %s\nUse --verbose flag for more details', e)
         finally:
             self.close_socket()
             self.logger.debug('* Connection closed.')
@@ -80,7 +80,7 @@ class DogstatsdClient():
                 self.logger.debug('* Closing connection...')
                 self.socket.close()
             except OSError as e:
-                self.logger.error("Unexpected error: %s\nUse --verbose flag for more details's", e)
+                self.logger.error("Error: %s\nUse --verbose flag for more details's", e)
             
             self.socket = None
 
@@ -119,7 +119,6 @@ class DogstatsdClient():
 
     @staticmethod
     def normalize_tags(tags):
-
         return (re.sub(INVALID_TAG_CHARACTERS, '_', tag.strip()) for tag in tags)
 
 
@@ -172,7 +171,11 @@ class DogstatsdClient():
 
 
     def service_check(self, name, status, date=None, hostname=None, tags=None, message=None):
-        tags+=self.constant_tags
+        if status not in SERVICE_CHECK_STATUSES:
+            self.logger.error("Invalid status: must be one of '0', '1', '2', '3'")
+            return
+
+        tags += self.constant_tags
 
         if date is None:
             date=time()
@@ -202,7 +205,7 @@ class DogstatsdClient():
         alert_type=None, 
         tags=None
     ):
-        tags+=self.constant_tags
+        tags += self.constant_tags
 
         if date is None:
             date=time()
@@ -212,7 +215,7 @@ class DogstatsdClient():
             len(text),
             title,
             text,
-            '|d:{' + str(date),
+            '|d:' + str(date),
             '|h:' + hostname if hostname else '',
             '|k:' + aggregation_key if aggregation_key else '',
             '|p:' + priority if priority else '',
@@ -222,6 +225,3 @@ class DogstatsdClient():
         )
         
         self.send_packet(message)
-
-    def add_global_tags(self):
-        pass
