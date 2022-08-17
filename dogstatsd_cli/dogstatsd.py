@@ -59,16 +59,16 @@ class DogstatsdClient():
             self.logger.error('Error: %s\nUse --verbose flag for more details', e)
         finally:
             self.close_socket()
-            self.logger.debug('* Connection closed.')
+            self.logger.debug('* Socket closed.')
 
 
     def get_socket(self):
         if not self.socket:
             if self.socket_path is not None:
-                self.logger.debug('* Connecting to UDS socket %s...' % self.socket_path)
+                self.logger.debug('* Sending packet to UDS socket %s...' % self.socket_path)
                 self.socket = self._get_uds_socket(self.socket_path)
             else:
-                self.logger.debug('* Connecting to %s:%s...' % (self.host, self.port))
+                self.logger.debug('* Sending packet to %s:%s...' % (self.host, self.port))
                 self.socket = self._get_udp_socket(self.host, self.port)
         
         return self.socket
@@ -77,7 +77,7 @@ class DogstatsdClient():
     def close_socket(self):
         if self.socket:
             try:
-                self.logger.debug('* Closing connection...')
+                self.logger.debug('* Closing socket...')
                 self.socket.close()
             except OSError as e:
                 self.logger.error("Error: %s\nUse --verbose flag for more details's", e)
